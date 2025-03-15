@@ -1,4 +1,3 @@
-
 // This builds but doesn't print anything?
 #[either_field::make_template]
 struct GenericStruct {
