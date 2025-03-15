@@ -7,4 +7,6 @@ edition = "2024"
 proc-macro = true
 
 [dependencies]
-syn = "2.0.100"
+quote = "1.0.40"
+# make sure to not use extra-traits in published versions
+syn = {version = "2.0.100", features = ["extra-traits"]}
