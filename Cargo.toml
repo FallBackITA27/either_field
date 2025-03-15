@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-either_field = { path = "./either_field" }
+either_field = { path = "./either_field_macros" }
