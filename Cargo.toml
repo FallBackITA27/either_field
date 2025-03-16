@@ -1,7 +1,3 @@
-[package]
-name = "either_field_tests"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-either_field = { path = "./either_field_macros" }
+[workspace]
+members = ["either_field","tests"]
+resolver = "3"
