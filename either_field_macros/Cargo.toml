@@ -9,4 +9,4 @@ proc-macro = true
 [dependencies]
 quote = "1.0.40"
 # make sure to not use extra-traits in published versions
-syn = {version = "2.0.100", features = ["extra-traits"]}
+syn = {version = "2.0.100", features = ["parsing","derive","extra-traits"]}

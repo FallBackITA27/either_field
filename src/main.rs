@@ -1,13 +1,11 @@
-// This builds but doesn't print anything?
+#[either_field::make_template]
+struct GenericStruct {
+    either_type: either_field::either!(i32 | &'static str),
+}
+
 #[either_field::make_template]
 struct GenericStruct {
     either_type: i32,
-}
-
-// This prints the tree but doesn't build?
-#[either_field::make_template]
-struct GenericStruct {
-    either_type: i32 | &'static str,
 }
 
 struct GenericStruct<T> {
@@ -16,7 +14,7 @@ struct GenericStruct<T> {
 
 impl<T> GenericStruct<T> {
     fn get_either_type_field(self) -> T {
-        return self.either_type;
+        self.either_type
     }
 }
 
