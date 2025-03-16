@@ -1,66 +1,35 @@
 #[either_field::make_template(
-    DerivedStruct;
+    DerivedStruct:
     [
-        either_type_0: i32,
+        either_type_0: &'static str
+    ],
+    TestToo:
+    [
+        either_type_1: u32
     ]
 )]
-struct GenericStruct<A, C, F, N, AB, AZ> {
+struct GenericStruct<A: IntoIterator, B: std::fmt::Debug + 'static> {
+    generic_a: A,
+    generic_b: B,
     either_type_0: either_field::either!(i32 | &'static str),
     either_type_1: either_field::either!(i32 | &'static str | u32),
     either_type_2: either_field::either!(i32 | &'static str | String),
-    either_type_3: either_field::either!(i32 | &'static str),
-    either_type_4: either_field::either!(i32 | &'static str),
-    either_type_5: either_field::either!(i32 | &'static str),
-    either_type_6: either_field::either!(i32 | &'static str),
-    either_type_7: either_field::either!(i32 | &'static str),
-    either_type_8: either_field::either!(i32 | &'static str),
-    either_type_9: either_field::either!(i32 | &'static str),
-    either_type_10: either_field::either!(i32 | &'static str),
-    either_type_11: either_field::either!(i32 | &'static str),
-    either_type_12: either_field::either!(i32 | &'static str),
-    either_type_13: either_field::either!(i32 | &'static str),
-    either_type_14: either_field::either!(i32 | &'static str),
-    either_type_15: either_field::either!(i32 | &'static str),
-    either_type_16: either_field::either!(i32 | &'static str),
-    either_type_17: either_field::either!(i32 | &'static str),
-    either_type_18: either_field::either!(i32 | &'static str),
-    either_type_19: either_field::either!(i32 | &'static str),
-    either_type_20: either_field::either!(i32 | &'static str),
-    either_type_21: either_field::either!(i32 | &'static str),
-    either_type_22: either_field::either!(i32 | &'static str),
-    either_type_23: either_field::either!(i32 | &'static str),
-    either_type_24: either_field::either!(i32 | &'static str),
-    either_type_25: either_field::either!(i32 | &'static str),
-    either_type_26: either_field::either!(i32 | &'static str),
-    either_type_27: either_field::either!(i32 | &'static str),
-    either_type_28: either_field::either!(i32 | &'static str),
-    either_type_29: either_field::either!(i32 | &'static str),
-    either_type_30: either_field::either!(i32 | &'static str),
-    either_type_31: either_field::either!(i32 | &'static str),
-    either_type_32: either_field::either!(i32 | &'static str),
-    either_type_33: either_field::either!(i32 | &'static str),
-    either_type_34: either_field::either!(i32 | &'static str),
-    either_type_35: either_field::either!(i32 | &'static str),
-    either_type_36: either_field::either!(i32 | &'static str),
-    either_type_37: either_field::either!(i32 | &'static str),
-    either_type_38: either_field::either!(i32 | &'static str),
-    either_type_39: either_field::either!(i32 | &'static str),
-    either_type_40: either_field::either!(i32 | &'static str),
-    either_type_41: either_field::either!(i32 | &'static str),
-    either_type_42: either_field::either!(i32 | &'static str),
-    either_type_43: either_field::either!(i32 | &'static str),
-    either_type_44: either_field::either!(i32 | &'static str),
-    either_type_45: either_field::either!(i32 | &'static str),
-    either_type_46: either_field::either!(i32 | &'static str),
-    either_type_47: either_field::either!(i32 | &'static str),
-    either_type_48: either_field::either!(i32 | &'static str),
-    either_type_49: either_field::either!(i32 | &'static str),
-    actual_generic_0: A,
-    actual_generic_1: C,
-    actual_generic_2: F,
-    actual_generic_3: N,
-    actual_generic_4: AB,
-    actual_generic_5: AZ,
+}
+
+#[either_field::make_template(
+    OmitsEverythingBut0:
+    [
+        either_type_0: i32
+    ],
+    OmitsEverythingBut1:
+    [
+        either_type_1: u32
+    ]
+)]
+struct GenericStructWithOmittedFields {
+    either_type_0: either_field::either!(() | i32),
+    either_type_1: either_field::either!(() | i32 | u32),
+    either_type_2: either_field::either!(() | i32 | String),
 }
 
 fn main() {}
