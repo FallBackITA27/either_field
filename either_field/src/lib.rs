@@ -2,8 +2,7 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{ToTokens, quote};
 use syn::{
-    GenericParam, Generics, Ident, Token, Type, bracketed, parse::Parse, parse_macro_input,
-    punctuated::Punctuated,
+    bracketed, parse::Parse, parse_macro_input, punctuated::Punctuated, GenericParam, Generics, Ident, Token, Type
 };
 
 fn get_alpha(n: usize) -> String {
@@ -86,7 +85,13 @@ pub fn make_template(
             .map(|(ident, possible_types)| match derived.fields.get(ident) {
                 None => possible_types[0].clone(),
                 Some(v) => match possible_types.contains(v) {
-                    false => possible_types[0].clone(),
+                    false => {
+                        let error_message = format!("Type \"{}\" is not part of the specified possible types: {:?}",
+                            v.to_token_stream(),
+                            possible_types.iter().map(|x| format!("{}", x.to_token_stream())).collect::<Vec<_>>());
+                        out.extend::<proc_macro2::TokenStream>(quote! {  compile_error!(#error_message); });
+                        v.clone()
+                    },
                     true => v.clone(),
                 },
             });
