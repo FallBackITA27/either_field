@@ -1,4 +1,9 @@
-#[either_field::make_template]
+#[either_field::make_template(
+    DerivedStruct;
+    [
+        either_type_0: i32,
+    ]
+)]
 struct GenericStruct<A, C, F, N, AB, AZ> {
     either_type_0: either_field::either!(i32 | &'static str),
     either_type_1: either_field::either!(i32 | &'static str | u32),
