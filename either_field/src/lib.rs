@@ -70,68 +70,55 @@ pub fn make_template(
     // this also has to match the order of the generics
     let mut ordered_idents_and_types: Vec<(Ident, Vec<Type>)> = vec![];
 
+    let mut ident_counter = 0;
     match generic_struct.fields {
         syn::Fields::Unit => {
             custom_compiler_error_msg!(out, "Unit structs have no fields to do anything about");
-
             return out.into();
         }
-        _ => {}
-    }
+        syn::Fields::Named(ref mut fields) => {
+            for field in &mut fields.named {
+                let type_macro = match helper::get_macro_from_type(&field.ty) {
+                    Some(x) => x,
+                    None => continue,
+                };
 
-    let fields = &mut generic_struct.fields;
-    let mut ident_counter = 0;
-    for field in fields {
-        if let Type::Macro(ref mut x) = field.ty {
-            let macro_type = &x.mac;
-            if !macro_type
-                .path
-                .segments
-                .iter()
-                .any(|segment| segment.ident == "either")
-            // TODO: need a better way to check whether the macro
-            // is the correct one and not one with the same name
-            {
-                continue;
-            }
+                let tokens: TokenStream = type_macro.tokens.clone().into();
+                let parsed = parse_macro_input!(tokens as minor_parsing::EitherMacro).0;
 
-            let tokens: TokenStream = macro_type.tokens.clone().into();
-            let parsed = parse_macro_input!(tokens as minor_parsing::EitherMacro).0;
+                ordered_idents_and_types.push((field.ident.as_ref().unwrap().clone(), parsed));
 
-            match field.clone().ident {
-                Some(ident) => ordered_idents_and_types.push((ident, parsed)),
-                None => {
-                    custom_compiler_error_msg!(
-                        out,
-                        "Struct {} must not be a tuple struct.",
-                        generic_struct.ident
-                    );
-                    return out.into();
+                let mut new_generic_name = helper::get_alpha(ident_counter);
+                while generics.iter().any(|x| {
+                    if let GenericParam::Type(x) = x {
+                        return x.ident == new_generic_name;
+                    }
+                    false
+                }) {
+                    ident_counter += 1;
+                    new_generic_name = helper::get_alpha(ident_counter);
                 }
-            };
-
-            let mut new_generic_name = helper::get_alpha(ident_counter);
-            while generics.iter().any(|x| {
-                if let GenericParam::Type(x) = x {
-                    return x.ident == new_generic_name;
-                }
-                false
-            }) {
-                ident_counter += 1;
-                new_generic_name = helper::get_alpha(ident_counter);
+                let ident = Ident::new(&new_generic_name, Span::call_site());
+                generics.push(GenericParam::Type(syn::TypeParam {
+                    attrs: vec![],
+                    ident: ident.clone(),
+                    colon_token: None,
+                    bounds: Punctuated::new(),
+                    eq_token: None,
+                    default: None,
+                }));
+                field.ty = Type::Verbatim(ident.into_token_stream());
             }
-            let ident = Ident::new(&new_generic_name, Span::call_site());
-            generics.push(GenericParam::Type(syn::TypeParam {
-                attrs: vec![],
-                ident: ident.clone(),
-                colon_token: None,
-                bounds: Punctuated::new(),
-                eq_token: None,
-                default: None,
-            }));
-            field.ty = Type::Verbatim(ident.into_token_stream());
+            ident_counter += 1;
         }
-        ident_counter += 1;
+        syn::Fields::Unnamed(ref mut _fields) => {
+            custom_compiler_error_msg!(
+                out,
+                "Struct {} must not be a tuple struct. This feature is not yet finished.",
+                generic_struct.ident
+            );
+            return out.into();
+        }
     }
 
     let derived_list = parse_macro_input!(attr as minor_parsing::DerivedList).0;
