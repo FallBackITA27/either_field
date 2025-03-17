@@ -1,14 +1,19 @@
 [package]
 name = "either_field"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
+license = "GPL-3.0-only"
+readme = "../README.md"
+repository = "https://github.com/FallBackITA27/either_field/"
+keywords = ["macro","macros","structs","omit","either","struct fields"]
+categories = ["data-structures", "development-tools::build-utils"]
+description = "Macro for generating different types off of a template struct"
+authors = ["FallBackITA27 <leilamassanova@gmail.com>", "ekstdo <minhala2003@mailo.com>"]
 
 [lib]
 proc-macro = true
 
 [dependencies]
-macro_magic = "0.6.0"
 proc-macro2 = "1.0.94"
 quote = "1.0.40"
-# make sure to not use extra-traits in published versions
-syn = {version = "2.0.100", features = ["parsing","derive","extra-traits"]}
+syn = {version = "2.0.100", features = ["parsing","full","derive","extra-traits"]}
