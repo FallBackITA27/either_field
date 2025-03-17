@@ -52,8 +52,6 @@ struct GenericPlayer {
 }
 ```
 
-The actual example in the `tests/` folder.
-
 # The Syntax
 within the `#[make_template()]` attribute macro inputs, we use a JSON-like syntax to indicate what's going on. Here's a description of it:
 
@@ -71,3 +69,5 @@ struct StructName {
     field_name: either_field::either!(type | type | type)
 }
 ```
+
+The actual examples are in the `example/` folder.

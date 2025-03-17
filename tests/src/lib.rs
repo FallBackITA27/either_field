@@ -1,4 +1,3 @@
-
 #[test]
 fn not_included() {
     let t = trybuild::TestCases::new();

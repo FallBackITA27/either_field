@@ -1,3 +1,3 @@
 [workspace]
-members = ["either_field","tests"]
+members = ["either_field", "example", "tests"]
 resolver = "3"

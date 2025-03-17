@@ -21,7 +21,7 @@ struct Score<A> {
     value: A,
 }
 
-fn main() {
+pub fn test() {
     let x = ScoreWithPlayer {
         player_name: (),
         player: PlayerData {
