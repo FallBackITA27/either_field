@@ -53,3 +53,21 @@ struct GenericPlayer {
 ```
 
 The actual example in the `tests/` folder.
+
+# The Syntax
+within the `#[make_template()]` attribute macro inputs, we use a JSON-like syntax to indicate what's going on. Here's a description of it:
+
+- `VIS` is the [visibility](https://doc.rust-lang.org/reference/visibility-and-privacy.html) of the struct
+```
+VIS name_of_the_derived_struct: [
+    field_name_1: type,
+    field_name_2: type
+]
+```
+
+within the struct instead, we use a macro to tell which fields should be considered and what their valid types are:
+```rs
+struct StructName {
+    field_name: either_field::either!(type | type | type)
+}
+```
