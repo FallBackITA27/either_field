@@ -1,35 +1,40 @@
-#[either_field::make_template(
-    DerivedStruct:
-    [
-        either_type_0: &'static str
-    ],
-    TestToo:
-    [
-        either_type_1: u32
-    ]
-)]
-struct GenericStruct<A: IntoIterator, B: std::fmt::Debug + 'static> {
-    generic_a: A,
-    generic_b: B,
-    either_type_0: either_field::either!(i32 | &'static str),
-    either_type_1: either_field::either!(i32 | &'static str | u32),
-    either_type_2: either_field::either!(i32 | &'static str | String),
+#[derive(Debug)]
+struct PlayerData {
+    player_id: i32,
+    player_name: String,
 }
 
 #[either_field::make_template(
-    OmitsEverythingBut0:
+    ScoreWithPlayer:
     [
-        either_type_0: i32
+        player: PlayerData
     ],
-    OmitsEverythingBut1:
+    ScoreWithoutPlayer:
     [
-        either_type_1: u32
+        player_name: String
     ]
 )]
-struct GenericStructWithOmittedFields {
-    either_type_0: either_field::either!(() | i32),
-    either_type_1: either_field::either!(() | i32 | u32),
-    either_type_2: either_field::either!(() | i32 | String),
+#[derive(Debug)]
+struct Score<A> {
+    player_name: either_field::either!(() | String),
+    player: either_field::either!(i32 | PlayerData),
+    value: A,
 }
 
-fn main() {}
+fn main() {
+    let x = ScoreWithPlayer {
+        player_name: (),
+        player: PlayerData {
+            player_id: 1,
+            player_name: String::from("Example"),
+        },
+        value: 0,
+    };
+    let y = ScoreWithoutPlayer {
+        player_name: String::from("Example"),
+        player: 1,
+        value: 0,
+    };
+    println!("{x:#?}");
+    println!("{y:#?}");
+}
