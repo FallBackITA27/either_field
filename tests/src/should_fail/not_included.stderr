@@ -1,0 +1,12 @@
+error: Type "& 'static str" is not part of the specified possible types: ["i32", "(A, B)", "String"]
+ --> src/should_fail/not_included.rs:2:1
+  |
+2 | / #[either_field::make_template(
+3 | |     NotIncluded:
+4 | |     [
+5 | |         either_type_4: &'static str
+6 | |     ],
+7 | | )]
+  | |__^
+  |
+  = note: this error originates in the attribute macro `either_field::make_template` (in Nightly builds, run with -Z macro-backtrace for more info)

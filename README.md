@@ -12,16 +12,16 @@ This crate instead allows you to generate separate types from a (under the hood)
 Picture you're working with SQL, and you have two tables:
 - `Scores`
 
-| | player_id | value |
-|-|-|-|
-|Type| INTEGER | INTEGER |
+  | | player_id | value |
+  |-|-|-|
+  |Type| INTEGER | INTEGER |
 
 and
 - `Players`
 
-| | player_id | username |
-|-|-|-|
-|Type| INTEGER | VARCHAR(255) |
+  | | player_id | username |
+  |-|-|-|
+  |Type| INTEGER | VARCHAR(255) |
 
 Say that in a function, you're returning either the pure `Scores` table, or a modified version with the player
 ```rs

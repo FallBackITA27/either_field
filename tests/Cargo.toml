@@ -5,3 +5,6 @@ edition = "2024"
 
 [dependencies]
 either_field = {path = "../either_field"}
+
+[dev-dependencies]
+trybuild = "1.0"
