@@ -2,22 +2,16 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{ToTokens, quote};
 use syn::{
-    bracketed, parse::Parse, parse_macro_input, punctuated::Punctuated, GenericParam, Generics, Ident, Token, Type
+    parse_macro_input, punctuated::Punctuated, GenericParam, Generics, Ident, Type
 };
 
-fn get_alpha(n: usize) -> String {
-    const ALPHABET: [char; 26] = [
-        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
-        'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-    ];
-    if n < 26 {
-        return ALPHABET[n].to_string();
-    }
-    let mut x = get_alpha((n / 26) - 1);
-    x.push(ALPHABET[n % 26]);
-    x
-}
+mod helper;
+mod minor_parsing;
 
+
+/// The meat and bone of the crate
+/// 
+/// Hello hello please stop giving me a warning!
 #[proc_macro_attribute]
 pub fn make_template(
     attr: proc_macro::TokenStream,
@@ -46,14 +40,14 @@ pub fn make_template(
             }
 
             let tokens: TokenStream = macro_type.tokens.clone().into();
-            let parsed = parse_macro_input!(tokens as EitherMacro).0;
+            let parsed = parse_macro_input!(tokens as minor_parsing::EitherMacro).0;
 
             match field.clone().ident {
                 Some(ident) => ordered_idents_and_types.push((ident, parsed)),
                 None => continue,
             };
 
-            let mut new_generic_name = get_alpha(ident_counter);
+            let mut new_generic_name = helper::get_alpha(ident_counter);
             while generics.iter().any(|x| {
                 if let GenericParam::Type(x) = x {
                     return x.ident == new_generic_name;
@@ -61,7 +55,7 @@ pub fn make_template(
                 false
             }) {
                 ident_counter += 1;
-                new_generic_name = get_alpha(ident_counter);
+                new_generic_name = helper::get_alpha(ident_counter);
             }
             let ident = Ident::new(&new_generic_name, Span::call_site());
             generics.push(GenericParam::Type(syn::TypeParam {
@@ -77,7 +71,7 @@ pub fn make_template(
         ident_counter += 1;
     }
 
-    let derived_list = parse_macro_input!(attr as DerivedList).0;
+    let derived_list = parse_macro_input!(attr as minor_parsing::DerivedList).0;
     let mut out = generic_struct.to_token_stream();
     for derived in derived_list {
         let types = ordered_idents_and_types
@@ -125,65 +119,11 @@ pub fn make_template(
     out.into()
 }
 
-struct DerivedList(Vec<Derived>);
-impl Parse for DerivedList {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let parsed: Punctuated<Derived, Token![,]> = Punctuated::parse_terminated(input)?;
-        Ok(Self(parsed.into_iter().collect()))
-    }
-}
-
-struct Derived {
-    name: Ident,
-    fields: std::collections::HashMap<Ident, Type>,
-}
-impl Parse for Derived {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let name = input.parse::<Ident>()?;
-        let _ = input.parse::<Token![:]>()?;
-        let field_list;
-        bracketed!(field_list in input);
-        let mut fields = std::collections::HashMap::new();
-        for field in
-            <Punctuated<FieldDescriptor, Token![,]>>::parse_separated_nonempty(&field_list)?
-        {
-            fields.insert(field.ident, field.field_type);
-        }
-
-        Ok(Self { name, fields })
-    }
-}
-
-struct FieldDescriptor {
-    ident: Ident,
-    field_type: Type,
-}
-impl Parse for FieldDescriptor {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let ident = input.parse::<Ident>()?;
-        let _ = input.parse::<Token![:]>()?;
-        let field_type = input.parse::<Type>()?;
-
-        Ok(Self { ident, field_type })
-    }
-}
-
-struct EitherMacro(Vec<Type>);
-impl Parse for EitherMacro {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let parsed: Punctuated<Type, Token![|]> = Punctuated::parse_separated_nonempty(input)?;
-        Ok(Self(parsed.into_iter().collect()))
-    }
-}
-
-// Compiler Magic
-// this makes an export for LSPs and the
-// compiler to not freak out but allows
-// the syntax for make_template to be
-// syntactically valid according to the
-// compiler. This relies on the fact
-// that the make_template macro compiles
-// before this function-like macro
+/// Compiler Magic
+/// 
+/// this makes an export for LSPs and the compiler to not freak out but allows the syntax
+/// for [`macro@make_template`] to be syntactically valid according to the compiler. This
+/// relies on the fact that the [`macro@make_template`] macro compiles before this macro.
 #[proc_macro]
 pub fn either(_: proc_macro::TokenStream) -> proc_macro::TokenStream {
     TokenStream::new()
