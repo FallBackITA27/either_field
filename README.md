@@ -33,7 +33,7 @@ struct Scores {
 
 // Example 2
 struct PlayerBasic {
-    player_id: PlayerBasic,
+    player_id: i32,
     username: String
 }
 
