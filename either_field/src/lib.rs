@@ -128,21 +128,27 @@ pub fn make_template(
             .iter()
             .map(|(ident, possible_types)| match derived.fields.get(ident) {
                 None => possible_types[0].clone(),
-                Some(v) => match possible_types.contains(v) {
-                    false => {
-                        custom_compiler_error_msg!(
-                            out,
-                            "Type \"{}\" is not part of the specified possible types: {:?}",
-                            v.to_token_stream(),
-                            possible_types
-                                .iter()
-                                .map(|x| format!("{}", x.to_token_stream()))
-                                .collect::<Vec<_>>()
-                        );
-                        v.clone()
+                Some(v) => {
+                    if let Type::Infer(_) = v {
+                        return possible_types[0].clone();
                     }
-                    true => v.clone(),
-                },
+
+                    match possible_types.contains(v) {
+                        false => {
+                            custom_compiler_error_msg!(
+                                out,
+                                "Type \"{}\" is not part of the specified possible types: {:?}",
+                                v.to_token_stream(),
+                                possible_types
+                                    .iter()
+                                    .map(|x| format!("{}", x.to_token_stream()))
+                                    .collect::<Vec<_>>()
+                            );
+                            v.clone()
+                        }
+                        true => v.clone(),
+                    }
+                }
             });
 
         let generic_name = generic_struct.ident.clone();
