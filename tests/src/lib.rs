@@ -1,12 +1,14 @@
+
 #[test]
-fn not_included() {
+fn errors() {
     let t = trybuild::TestCases::new();
-    t.compile_fail("src/should_fail/not_included.rs");
+    t.compile_fail("src/should_fail/not_included/mod.rs");
 }
 
 #[test]
-fn it_works() {
+fn successes() {
     let t = trybuild::TestCases::new();
-    t.pass("src/example_usage.rs");
-    t.pass("src/typical_usage.rs");
+    t.pass("../example/src/usage1.rs");
+    t.pass("../example/src/usage2.rs");
+    t.pass("../example/src/latest_feature.rs");
 }

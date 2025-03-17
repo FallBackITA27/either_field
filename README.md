@@ -53,6 +53,7 @@ struct GenericPlayer {
 ```
 
 # The Syntax
+## Normal Structs
 within the `#[make_template()]` attribute macro inputs, we use a JSON-like syntax to indicate what's going on. Here's a description of it:
 
 - `VIS` is the [visibility](https://doc.rust-lang.org/reference/visibility-and-privacy.html) of the struct
@@ -68,6 +69,19 @@ within the struct instead, we use a macro to tell which fields should be conside
 struct StructName {
     field_name: either_field::either!(type | type | type)
 }
+```
+
+## Tuple Structs
+it is allowed to either indicate the fields with a number, or do so sequentially
+```
+VIS name_of_the_derived_struct: [
+    field_position: type, // i.e. 0
+    ...
+]
+```
+
+```
+VIS name_of_the_derived_struct: [ type, ... ]
 ```
 
 The actual examples are in the `example/` folder.
