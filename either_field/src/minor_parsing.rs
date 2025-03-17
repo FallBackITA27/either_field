@@ -1,7 +1,4 @@
-
-use syn::{
-    bracketed, parse::Parse, punctuated::Punctuated, Ident, Token, Type
-};
+use syn::{Ident, Token, Type, bracketed, parse::Parse, punctuated::Punctuated};
 
 pub(crate) struct DerivedList(pub Vec<Derived>);
 impl Parse for DerivedList {

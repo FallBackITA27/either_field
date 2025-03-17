@@ -1,16 +1,20 @@
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{ToTokens, quote};
-use syn::{
-    parse_macro_input, punctuated::Punctuated, GenericParam, Generics, Ident, Type
-};
+use syn::{GenericParam, Generics, Ident, Type, parse_macro_input, punctuated::Punctuated};
 
 mod helper;
 mod minor_parsing;
 
+macro_rules! custom_compiler_error_msg {
+    ($out: ident, $format: literal, $($arg:expr),*) => {
+        let error_message = format!($format, $($arg),*);
+        $out.extend::<proc_macro2::TokenStream>(quote! {  compile_error!(#error_message); });
+    };
+}
 
 /// The meat and bone of the crate
-/// 
+///
 /// This will turn any template struct, i.e:
 /// ```
 /// #[make_template(/* ... */)]
@@ -45,15 +49,16 @@ mod minor_parsing;
 /// type DerivateTwo = ThisIsAnExample<(), String>;
 /// type DerivateThree = ThisIsAnExample<i32, String>;
 /// ```
-/// Every un-specified field will use the first argument of [`macro@either`]
+/// Every unspecified field will use the first argument of [`macro@either`]
 /// as default.
-/// 
+///
 /// Because the syntax is JSON-like, a common error is having extra commas.
 #[proc_macro_attribute]
 pub fn make_template(
     attr: proc_macro::TokenStream,
     items: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
+    let mut out = proc_macro2::TokenStream::new();
     let mut generic_struct = parse_macro_input!(items as syn::ItemStruct);
     let initial_generics: Generics = generic_struct.generics.clone();
     let generics = &mut generic_struct.generics.params;
@@ -71,7 +76,8 @@ pub fn make_template(
                 .segments
                 .iter()
                 .any(|segment| segment.ident == "either")
-            // TODO: need a better way to check whether the macro is the correct one
+            // TODO: need a better way to check whether the macro
+            // is the correct one and not one with the same name
             {
                 continue;
             }
@@ -81,7 +87,14 @@ pub fn make_template(
 
             match field.clone().ident {
                 Some(ident) => ordered_idents_and_types.push((ident, parsed)),
-                None => continue,
+                None => {
+                    custom_compiler_error_msg!(
+                        out,
+                        "Struct {} must not be a tuple struct.",
+                        generic_struct.ident
+                    );
+                    continue;
+                }
             };
 
             let mut new_generic_name = helper::get_alpha(ident_counter);
@@ -109,7 +122,7 @@ pub fn make_template(
     }
 
     let derived_list = parse_macro_input!(attr as minor_parsing::DerivedList).0;
-    let mut out = generic_struct.to_token_stream();
+    out.extend::<proc_macro2::TokenStream>(generic_struct.to_token_stream());
     for derived in derived_list {
         let types = ordered_idents_and_types
             .iter()
@@ -117,12 +130,17 @@ pub fn make_template(
                 None => possible_types[0].clone(),
                 Some(v) => match possible_types.contains(v) {
                     false => {
-                        let error_message = format!("Type \"{}\" is not part of the specified possible types: {:?}",
+                        custom_compiler_error_msg!(
+                            out,
+                            "Type \"{}\" is not part of the specified possible types: {:?}",
                             v.to_token_stream(),
-                            possible_types.iter().map(|x| format!("{}", x.to_token_stream())).collect::<Vec<_>>());
-                        out.extend::<proc_macro2::TokenStream>(quote! {  compile_error!(#error_message); });
+                            possible_types
+                                .iter()
+                                .map(|x| format!("{}", x.to_token_stream()))
+                                .collect::<Vec<_>>()
+                        );
                         v.clone()
-                    },
+                    }
                     true => v.clone(),
                 },
             });
@@ -157,7 +175,7 @@ pub fn make_template(
 }
 
 /// Compiler Magic
-/// 
+///
 /// this makes an export for LSPs and the compiler to not freak out but allows the syntax
 /// for [`macro@make_template`] to be syntactically valid according to the compiler. This
 /// relies on the fact that the [`macro@make_template`] macro compiles before this macro.
