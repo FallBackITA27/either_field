@@ -1,3 +1,4 @@
+use proc_macro2::{Literal, Span};
 use syn::{Ident, Token, Type, Visibility, bracketed, parse::Parse, punctuated::Punctuated};
 
 // This is the struct that handles
@@ -31,10 +32,16 @@ impl Parse for Derived {
         let field_list;
         bracketed!(field_list in input);
         let mut fields = std::collections::HashMap::new();
+        let mut ident_number = 0;
         for field in
             <Punctuated<FieldDescriptor, Token![,]>>::parse_separated_nonempty(&field_list)?
         {
-            fields.insert(field.ident, field.field_type);
+            let ident = match field.ident {
+                Some(ident) => ident,
+                None => Ident::new(format!("_{ident_number}").as_str(), Span::call_site()),
+            };
+            fields.insert(ident, field.field_type);
+            ident_number += 1;
         }
 
         Ok(Self { name, fields, vis })
@@ -46,15 +53,26 @@ impl Parse for Derived {
 //
 // field_name: type, ...
 pub(crate) struct FieldDescriptor {
-    ident: Ident,
+    ident: Option<Ident>,
     field_type: Type,
 }
 impl Parse for FieldDescriptor {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let ident = input.parse::<Ident>()?;
-        let _ = input.parse::<Token![:]>()?;
-        let field_type = input.parse::<Type>()?;
+        let ident = if input.peek2(Token![:]) {
+            let ident = if input.peek(Ident) {
+                input.parse::<Ident>()?
+            } else {
+                let x = input.parse::<Literal>()?;
+                Ident::new(format!("_{x}").as_str(), x.span())
+            };
+            let _ = input.parse::<Token![:]>()?;
+            println!("{ident:#?}");
+            Some(ident)
+        } else {
+            None
+        };
 
+        let field_type = input.parse::<Type>()?;
         Ok(Self { ident, field_type })
     }
 }

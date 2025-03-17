@@ -70,13 +70,13 @@ pub fn make_template(
     // this also has to match the order of the generics
     let mut ordered_idents_and_types: Vec<(Ident, Vec<Type>)> = vec![];
 
-    let mut ident_counter = 0;
     match generic_struct.fields {
         syn::Fields::Unit => {
             custom_compiler_error_msg!(out, "Unit structs have no fields to do anything about");
             return out.into();
         }
         syn::Fields::Named(ref mut fields) => {
+            let mut ident_counter = 0;
             for field in &mut fields.named {
                 let type_macro = match helper::get_macro_from_type(&field.ty) {
                     Some(x) => x,
@@ -88,17 +88,7 @@ pub fn make_template(
 
                 ordered_idents_and_types.push((field.ident.as_ref().unwrap().clone(), parsed));
 
-                let mut new_generic_name = helper::get_alpha(ident_counter);
-                while generics.iter().any(|x| {
-                    if let GenericParam::Type(x) = x {
-                        return x.ident == new_generic_name;
-                    }
-                    false
-                }) {
-                    ident_counter += 1;
-                    new_generic_name = helper::get_alpha(ident_counter);
-                }
-                let ident = Ident::new(&new_generic_name, Span::call_site());
+                let ident = helper::generate_generic_name(generics, &mut ident_counter);
                 generics.push(GenericParam::Type(syn::TypeParam {
                     attrs: vec![],
                     ident: ident.clone(),
@@ -108,16 +98,39 @@ pub fn make_template(
                     default: None,
                 }));
                 field.ty = Type::Verbatim(ident.into_token_stream());
+                ident_counter += 1;
             }
-            ident_counter += 1;
         }
-        syn::Fields::Unnamed(ref mut _fields) => {
-            custom_compiler_error_msg!(
-                out,
-                "Struct {} must not be a tuple struct. This feature is not yet finished.",
-                generic_struct.ident
-            );
-            return out.into();
+        syn::Fields::Unnamed(ref mut fields) => {
+            let mut ident_counter = 0;
+            let mut field_number = -1;
+            for field in &mut fields.unnamed {
+                field_number += 1;
+                let type_macro = match helper::get_macro_from_type(&field.ty) {
+                    Some(x) => x,
+                    None => continue,
+                };
+
+                let tokens: TokenStream = type_macro.tokens.clone().into();
+                let parsed = parse_macro_input!(tokens as minor_parsing::EitherMacro).0;
+
+                ordered_idents_and_types.push((
+                    Ident::new(format!("_{field_number}").as_str(), Span::call_site()),
+                    parsed,
+                ));
+
+                let ident = helper::generate_generic_name(generics, &mut ident_counter);
+                generics.push(GenericParam::Type(syn::TypeParam {
+                    attrs: vec![],
+                    ident: ident.clone(),
+                    colon_token: None,
+                    bounds: Punctuated::new(),
+                    eq_token: None,
+                    default: None,
+                }));
+                field.ty = Type::Verbatim(ident.into_token_stream());
+                ident_counter += 1;
+            }
         }
     }
 
@@ -181,8 +194,6 @@ pub fn make_template(
 
     out.into()
 }
-
-fn read_fields_normal_struct() {}
 
 /// Compiler Magic
 ///
