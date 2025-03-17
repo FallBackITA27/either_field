@@ -7,10 +7,14 @@ mod helper;
 mod minor_parsing;
 
 macro_rules! custom_compiler_error_msg {
+    ($out: ident, $format: literal) => {
+            let error_message = String::from($format);
+            $out.extend::<proc_macro2::TokenStream>(quote! {  compile_error!(#error_message); });
+        };
     ($out: ident, $format: literal, $($arg:expr),*) => {
-        let error_message = format!($format, $($arg),*);
-        $out.extend::<proc_macro2::TokenStream>(quote! {  compile_error!(#error_message); });
-    };
+            let error_message = format!($format, $($arg),*);
+            $out.extend::<proc_macro2::TokenStream>(quote! {  compile_error!(#error_message); });
+        };
 }
 
 /// The meat and bone of the crate
@@ -66,6 +70,15 @@ pub fn make_template(
     // this also has to match the order of the generics
     let mut ordered_idents_and_types: Vec<(Ident, Vec<Type>)> = vec![];
 
+    match generic_struct.fields {
+        syn::Fields::Unit => {
+            custom_compiler_error_msg!(out, "Unit structs have no fields to do anything about");
+
+            return out.into();
+        }
+        _ => {}
+    }
+
     let fields = &mut generic_struct.fields;
     let mut ident_counter = 0;
     for field in fields {
@@ -93,7 +106,7 @@ pub fn make_template(
                         "Struct {} must not be a tuple struct.",
                         generic_struct.ident
                     );
-                    continue;
+                    return out.into();
                 }
             };
 
@@ -124,16 +137,18 @@ pub fn make_template(
     let derived_list = parse_macro_input!(attr as minor_parsing::DerivedList).0;
     out.extend::<proc_macro2::TokenStream>(generic_struct.to_token_stream());
     for derived in derived_list {
-        let types = ordered_idents_and_types
-            .iter()
-            .map(|(ident, possible_types)| match derived.fields.get(ident) {
-                None => possible_types[0].clone(),
+        let mut types = vec![];
+        for (ident, possible_types) in &ordered_idents_and_types {
+            match derived.fields.get(ident) {
+                None => types.push(possible_types[0].clone()),
                 Some(v) => {
                     if let Type::Infer(_) = v {
-                        return possible_types[0].clone();
+                        types.push(possible_types[0].clone());
+                        continue;
                     }
 
                     match possible_types.contains(v) {
+                        true => types.push(v.clone()),
                         false => {
                             custom_compiler_error_msg!(
                                 out,
@@ -144,12 +159,12 @@ pub fn make_template(
                                     .map(|x| format!("{}", x.to_token_stream()))
                                     .collect::<Vec<_>>()
                             );
-                            v.clone()
+                            return out.into();
                         }
-                        true => v.clone(),
                     }
                 }
-            });
+            }
+        }
 
         let generic_name = generic_struct.ident.clone();
         let generic_names: Vec<_> = initial_generics
@@ -179,6 +194,8 @@ pub fn make_template(
 
     out.into()
 }
+
+fn read_fields_normal_struct() {}
 
 /// Compiler Magic
 ///
