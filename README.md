@@ -53,7 +53,7 @@ struct GenericPlayer {
 ```
 
 # The Syntax
-## Normal Structs
+## Structs
 within the `#[make_template()]` attribute macro inputs, we use a JSON-like syntax to indicate what's going on. Here's a description of it:
 
 - `VIS` is the [visibility](https://doc.rust-lang.org/reference/visibility-and-privacy.html) of the struct
@@ -70,8 +70,22 @@ struct StructName {
     field_name: either_field::either!(type | type | type)
 }
 ```
+## The settings
+Before the list of generated structs, there can be settings:
+```
+SettingName: value,
+```
+These are separated by commas, the last one by a semicolon, and the possible values are the following:
+
+| Setting Name | Type | Default | Explanation |
+|-|-|-|-|
+| GenStructs | bool | false | Generates new structs instead of generating type declarations |
+| DeleteTemplate | bool | false | Deletes the template struct. Requires `GenStructs` to be `true` |
+| OmitEmptyTupleFields | bool | false | Deletes the fields which's type is `()`, effectively omitting them. Requires `GenStructs` to be `true` |
 
 ## Tuple Structs
+Tuple structs require for `GenStructs` to be set to true.
+
 it is allowed to either indicate the fields with a number, or do so sequentially
 ```
 VIS name_of_the_derived_struct: [

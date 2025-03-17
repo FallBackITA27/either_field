@@ -67,8 +67,7 @@ pub fn make_template(
     let initial_generics: Generics = generic_struct.generics.clone();
     let generics = &mut generic_struct.generics.params;
 
-    // this also has to match the order of the generics
-    let mut ordered_idents_and_types: Vec<(Ident, Vec<Type>)> = vec![];
+    let attribute_inputs = parse_macro_input!(attr as minor_parsing::AttrInputs);
 
     let is_tuple_struct = match generic_struct.fields {
         syn::Fields::Unit => {
@@ -78,12 +77,14 @@ pub fn make_template(
         syn::Fields::Unnamed(_) => true,
         syn::Fields::Named(_) => false,
     };
-    
-    if is_tuple_struct {
-        custom_compiler_error_msg!(out, "Tuple structs are not yet completely implemented.");
+
+    if is_tuple_struct && !attribute_inputs.settings.generate_structs {
+        custom_compiler_error_msg!(out, "Tuple structs require `GenStructs` set to `true`.");
         return out.into();
     }
 
+    // this also has to match the order of the generics
+    let mut ordered_idents_and_types: Vec<(Ident, Vec<Type>)> = vec![];
     let mut ident_counter = 0;
     let mut field_number = -1;
     for field in &mut generic_struct.fields {
@@ -118,7 +119,7 @@ pub fn make_template(
         ident_counter += 1;
     }
 
-    let derived_list = parse_macro_input!(attr as minor_parsing::DerivedList).0;
+    let derived_list = attribute_inputs.derived_structs;
     out.extend::<proc_macro2::TokenStream>(generic_struct.to_token_stream());
     for derived in derived_list {
         let mut types = vec![];
