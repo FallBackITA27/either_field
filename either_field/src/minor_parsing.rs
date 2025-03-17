@@ -1,5 +1,9 @@
-use syn::{bracketed, parse::Parse, punctuated::Punctuated, Ident, Token, Type, Visibility};
+use syn::{Ident, Token, Type, Visibility, bracketed, parse::Parse, punctuated::Punctuated};
 
+// This is the struct that handles
+// parsing all the derived structs
+//
+// Derived, ...
 pub(crate) struct DerivedList(pub Vec<Derived>);
 impl Parse for DerivedList {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -8,6 +12,12 @@ impl Parse for DerivedList {
     }
 }
 
+// This is the struct that handles parsing the
+// syntax for specifying the derived structs
+//
+// VIS is the visibility
+//
+// VIS struct_name: FieldDescriptor
 pub(crate) struct Derived {
     pub vis: Visibility,
     pub name: Ident,
@@ -31,6 +41,10 @@ impl Parse for Derived {
     }
 }
 
+// This is the struct that handles parsing the syntax
+// for specifying field types in normal structs
+//
+// field_name: type, ...
 pub(crate) struct FieldDescriptor {
     ident: Ident,
     field_type: Type,
@@ -45,6 +59,9 @@ impl Parse for FieldDescriptor {
     }
 }
 
+// This is the struct that handles parsing the either!() macro's contents
+//
+// (type | type | ... )
 pub(crate) struct EitherMacro(pub Vec<Type>);
 impl Parse for EitherMacro {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
