@@ -1,4 +1,4 @@
-use syn::{Ident, Token, Type, bracketed, parse::Parse, punctuated::Punctuated};
+use syn::{bracketed, parse::Parse, punctuated::Punctuated, Ident, Token, Type, Visibility};
 
 pub(crate) struct DerivedList(pub Vec<Derived>);
 impl Parse for DerivedList {
@@ -9,11 +9,13 @@ impl Parse for DerivedList {
 }
 
 pub(crate) struct Derived {
+    pub vis: Visibility,
     pub name: Ident,
     pub fields: std::collections::HashMap<Ident, Type>,
 }
 impl Parse for Derived {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let vis = input.parse::<Visibility>()?;
         let name = input.parse::<Ident>()?;
         let _ = input.parse::<Token![:]>()?;
         let field_list;
@@ -25,7 +27,7 @@ impl Parse for Derived {
             fields.insert(field.ident, field.field_type);
         }
 
-        Ok(Self { name, fields })
+        Ok(Self { name, fields, vis })
     }
 }
 

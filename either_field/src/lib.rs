@@ -161,7 +161,7 @@ pub fn make_template(
             eq_token: syn::token::Eq::default(),
             attrs: vec![],
             ident: derived.name,
-            vis: generic_struct.vis.clone(),
+            vis: derived.vis.clone(),
             ty: std::boxed::Box::new(Type::Verbatim(quote! {
                 #generic_name<#(#generic_names),* #comma #(#types),*>
             })),
