@@ -11,7 +11,35 @@ mod minor_parsing;
 
 /// The meat and bone of the crate
 /// 
-/// Hello hello please stop giving me a warning!
+/// This will turn any template struct, i.e:
+/// ```
+/// #[make_template(/* ... */)]
+/// struct ThisIsAnExample {
+///     field_1: either!(() | i32),
+///     field_2: either!(() | String)
+/// }
+/// ```
+/// into all the variants defined in the attribute input
+/// ```
+/// #[make_template(
+///     DerivateOne: [
+///         field_1: i32
+///     ],
+///     DerivateTwo: [
+///         field_2: String
+///     ]
+/// )]
+/// struct ThisIsAnExample {/* ... */}
+/// ```
+/// which will effectively turn to the following code
+/// ```
+/// struct ThisIsAnExample<A, B> {
+///     field_1: A,
+///     field_2: B
+/// }
+/// type DerivateOne = ThisIsAnExample<i32, ()>;
+/// type DerivateTwo = ThisIsAnExample<(), String>;
+/// ```
 #[proc_macro_attribute]
 pub fn make_template(
     attr: proc_macro::TokenStream,
