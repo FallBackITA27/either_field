@@ -27,6 +27,10 @@ mod minor_parsing;
 ///     ],
 ///     DerivateTwo: [
 ///         field_2: String
+///     ],
+///     DerivateThree: [
+///         field_1: i32
+///         field_2: String
 ///     ]
 /// )]
 /// struct ThisIsAnExample {/* ... */}
@@ -39,7 +43,12 @@ mod minor_parsing;
 /// }
 /// type DerivateOne = ThisIsAnExample<i32, ()>;
 /// type DerivateTwo = ThisIsAnExample<(), String>;
+/// type DerivateThree = ThisIsAnExample<i32, String>;
 /// ```
+/// Every un-specified field will use the first argument of [`macro@either`]
+/// as default.
+/// 
+/// Because the syntax is JSON-like, a common error is having extra commas.
 #[proc_macro_attribute]
 pub fn make_template(
     attr: proc_macro::TokenStream,
