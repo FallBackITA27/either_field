@@ -72,12 +72,17 @@ pub fn make_template(
 
     let is_tuple_struct = match generic_struct.fields {
         syn::Fields::Unit => {
-            custom_compiler_error_msg!(out, "Unit structs have no fields to do anything about");
+            custom_compiler_error_msg!(out, "Unit structs have no fields to do anything about.");
             return out.into();
         }
         syn::Fields::Unnamed(_) => true,
         syn::Fields::Named(_) => false,
     };
+    
+    if is_tuple_struct {
+        custom_compiler_error_msg!(out, "Tuple structs are not yet completely implemented.");
+        return out.into();
+    }
 
     let mut ident_counter = 0;
     let mut field_number = -1;
