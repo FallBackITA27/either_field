@@ -70,68 +70,47 @@ pub fn make_template(
     // this also has to match the order of the generics
     let mut ordered_idents_and_types: Vec<(Ident, Vec<Type>)> = vec![];
 
-    match generic_struct.fields {
+    let is_tuple_struct = match generic_struct.fields {
         syn::Fields::Unit => {
             custom_compiler_error_msg!(out, "Unit structs have no fields to do anything about");
             return out.into();
         }
-        syn::Fields::Named(ref mut fields) => {
-            let mut ident_counter = 0;
-            for field in &mut fields.named {
-                let type_macro = match helper::get_macro_from_type(&field.ty) {
-                    Some(x) => x,
-                    None => continue,
-                };
+        syn::Fields::Unnamed(_) => true,
+        syn::Fields::Named(_) => false,
+    };
 
-                let tokens: TokenStream = type_macro.tokens.clone().into();
-                let parsed = parse_macro_input!(tokens as minor_parsing::EitherMacro).0;
+    let mut ident_counter = 0;
+    let mut field_number = -1;
+    for field in &mut generic_struct.fields {
+        field_number += 1;
+        let type_macro = match helper::get_macro_from_type(&field.ty) {
+            Some(x) => x,
+            None => continue,
+        };
 
-                ordered_idents_and_types.push((field.ident.as_ref().unwrap().clone(), parsed));
+        let tokens: TokenStream = type_macro.tokens.clone().into();
+        let parsed = parse_macro_input!(tokens as minor_parsing::EitherMacro).0;
 
-                let ident = helper::generate_generic_name(generics, &mut ident_counter);
-                generics.push(GenericParam::Type(syn::TypeParam {
-                    attrs: vec![],
-                    ident: ident.clone(),
-                    colon_token: None,
-                    bounds: Punctuated::new(),
-                    eq_token: None,
-                    default: None,
-                }));
-                field.ty = Type::Verbatim(ident.into_token_stream());
-                ident_counter += 1;
-            }
-        }
-        syn::Fields::Unnamed(ref mut fields) => {
-            let mut ident_counter = 0;
-            let mut field_number = -1;
-            for field in &mut fields.unnamed {
-                field_number += 1;
-                let type_macro = match helper::get_macro_from_type(&field.ty) {
-                    Some(x) => x,
-                    None => continue,
-                };
+        ordered_idents_and_types.push((
+            if is_tuple_struct {
+                Ident::new(format!("_{field_number}").as_str(), Span::call_site())
+            } else {
+                field.ident.as_ref().unwrap().clone()
+            },
+            parsed,
+        ));
 
-                let tokens: TokenStream = type_macro.tokens.clone().into();
-                let parsed = parse_macro_input!(tokens as minor_parsing::EitherMacro).0;
-
-                ordered_idents_and_types.push((
-                    Ident::new(format!("_{field_number}").as_str(), Span::call_site()),
-                    parsed,
-                ));
-
-                let ident = helper::generate_generic_name(generics, &mut ident_counter);
-                generics.push(GenericParam::Type(syn::TypeParam {
-                    attrs: vec![],
-                    ident: ident.clone(),
-                    colon_token: None,
-                    bounds: Punctuated::new(),
-                    eq_token: None,
-                    default: None,
-                }));
-                field.ty = Type::Verbatim(ident.into_token_stream());
-                ident_counter += 1;
-            }
-        }
+        let ident = helper::generate_generic_name(generics, &mut ident_counter);
+        generics.push(GenericParam::Type(syn::TypeParam {
+            attrs: vec![],
+            ident: ident.clone(),
+            colon_token: None,
+            bounds: Punctuated::new(),
+            eq_token: None,
+            default: None,
+        }));
+        field.ty = Type::Verbatim(ident.into_token_stream());
+        ident_counter += 1;
     }
 
     let derived_list = parse_macro_input!(attr as minor_parsing::DerivedList).0;
