@@ -19,12 +19,10 @@ pub(crate) fn generate_generic_name(
     n: &mut usize,
 ) -> Ident {
     let mut new_generic_name = get_alpha(*n);
-    while generics.iter().any(|x| {
-        if let GenericParam::Type(x) = x {
-            return x.ident == new_generic_name;
-        }
-        false
-    }) {
+    while generics
+        .iter()
+        .any(|x| matches!(x, GenericParam::Type(x) if x.ident == new_generic_name))
+    {
         *n += 1;
         new_generic_name = get_alpha(*n);
     }
@@ -44,5 +42,5 @@ pub(crate) fn get_macro_from_type(x: &Type) -> Option<Macro> {
             return Some(x.mac.clone());
         }
     }
-    return None;
+    None
 }

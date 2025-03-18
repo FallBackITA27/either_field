@@ -1,6 +1,6 @@
 use proc_macro2::{Literal, Span, TokenTree};
 use syn::{
-    Ident, LitBool, Meta, Token, Type, Visibility, bracketed, parse::Parse, punctuated::Punctuated,
+    Ident, LitBool, Token, Type, Visibility, bracketed, parse::Parse, punctuated::Punctuated,
 };
 
 macro_rules! syn_error {
@@ -13,21 +13,21 @@ macro_rules! syn_error {
 // parsing all the settings
 //
 // SettingName: Value, ...;
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct Settings {
     pub generate_structs: bool,
     pub delete_template: bool,
     pub delete_empty_tuple_fields: bool,
 }
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            generate_structs: false,
-            delete_template: false,
-            delete_empty_tuple_fields: false,
-        }
-    }
-}
+// impl Default for Settings {
+//     fn default() -> Self {
+//         Self {
+//             generate_structs: false,
+//             delete_template: false,
+//             delete_empty_tuple_fields: false,
+//         }
+//     }
+// }
 
 // This is the struct that handles
 // parsing all the derived structs
@@ -119,7 +119,7 @@ impl Parse for Derived {
         let _ = input.parse::<Token![:]>()?;
         let field_list;
         bracketed!(field_list in input);
-        
+
         let mut fields = std::collections::HashMap::new();
         for (ident_number, field) in
             (<Punctuated<FieldDescriptor, Token![,]>>::parse_separated_nonempty(&field_list)?)
