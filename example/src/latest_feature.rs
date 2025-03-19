@@ -1,5 +1,6 @@
 #[either_field::make_template(
-    GenStructs: true;
+    GenStructs: true,
+    OmitEmptyTupleFields: true;
     OmitsEverythingBut0: [
         0: i32
     ],
