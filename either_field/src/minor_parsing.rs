@@ -72,8 +72,10 @@ impl Parse for AttrInputs {
                         let value = input.parse::<LitBool>()?;
                         match ident.to_string().as_str() {
                             "GenStructs" => settings.generate_structs = value.value,
-                            "DeleteTemplate" => settings.generate_structs = value.value,
-                            "OmitEmptyTupleFields" => settings.generate_structs = value.value,
+                            "DeleteTemplate" => settings.delete_template = value.value,
+                            "OmitEmptyTupleFields" => {
+                                settings.delete_empty_tuple_fields = value.value
+                            }
                             _ => (),
                         }
                     } else {

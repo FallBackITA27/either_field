@@ -249,7 +249,7 @@ fn gen_structs(
             }
         }
 
-        if !leave_out.is_empty() && attribute_inputs.settings.delete_empty_tuple_fields {
+        if attribute_inputs.settings.delete_empty_tuple_fields {
             // here are the fields, that aren't being left out
             match out_struct.fields {
                 syn::Fields::Unit => {
@@ -299,8 +299,6 @@ fn gen_structs(
                 }
             };
         }
-
-        println!("{:#?}", out_struct.fields);
 
         out.extend::<proc_macro2::TokenStream>(out_struct.into_token_stream());
     }

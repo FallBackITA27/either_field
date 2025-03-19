@@ -6,6 +6,10 @@ mod usage1;
 // 1.0.0
 mod usage2;
 
+// Showcases the implementation of Tuple structs,
+// the implementation of settings
+// and the new settings that have been added
+//
 mod latest_feature;
 
 fn main() {
