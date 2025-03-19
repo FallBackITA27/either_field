@@ -16,9 +16,9 @@ struct GenericStructWithOmittedFields(
 );
 
 pub fn test() {
-    let omitted0 = OmitsEverythingBut0(32i32, (), ());
-    let omitted1 = OmitsEverythingBut1((), 32u32, ());
-    let omitted2 = OmitsEverythingBut2((), (), "Test");
+    let omitted0 = OmitsEverythingBut0(32i32);
+    let omitted1 = OmitsEverythingBut1(32u32);
+    let omitted2 = OmitsEverythingBut2("Test");
     println!("{omitted0:#?}");
     println!("{omitted1:#?}");
     println!("{omitted2:#?}");

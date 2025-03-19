@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{ToTokens, quote};
@@ -213,10 +215,12 @@ fn gen_structs(
         ordered_idents_and_types.push(parsed);
     }
 
+
     for derived in attribute_inputs.derived_structs {
         let mut out_struct = template_struct.clone();
         out_struct.ident = derived.name;
         out_struct.vis = derived.vis;
+        let mut leave_out = HashSet::new();
         for (field_num, field) in out_struct.fields.iter_mut().enumerate() {
             let possible_types = &ordered_idents_and_types[field_num];
             let get = derived.fields.get(field.ident.as_ref().unwrap());
@@ -224,10 +228,16 @@ fn gen_structs(
                 field.ident = None;
             }
             if get.is_none() {
+                if matches!(&field.ty, Type::Tuple(syn::TypeTuple { elems, .. }) if elems.is_empty() ) {
+                    leave_out.insert(field_num);
+                }
                 continue;
             }
             let v = get.unwrap();
             if let Type::Infer(_) = v {
+                if matches!(&field.ty, Type::Tuple(syn::TypeTuple { elems, .. }) if elems.is_empty() ) {
+                    leave_out.insert(field_num);
+                }
                 continue;
             }
             match possible_types.contains(v) {
@@ -245,6 +255,40 @@ fn gen_structs(
                     return out.into();
                 }
             }
+            // check for empty tuples
+
+
+        }
+        if !leave_out.is_empty() {
+            // here are the fields, that aren't being left out
+            match out_struct.fields {
+                syn::Fields::Unit => {
+                    // This should never happen anyways, as template struct is already shielding us
+                    // from this case
+                    custom_compiler_error_msg!(out, "Unit structs have no fields to do anything about.");
+                    return out.into();
+                },
+                syn::Fields::Named(named) => {
+                    let old_punctuation = named.named;
+                    let brace = named.brace_token;
+                    out_struct.fields = syn::Fields::Named(syn::FieldsNamed {
+                        brace_token: brace,
+                        named: old_punctuation.into_iter().enumerate().filter_map(|(index, i)| if leave_out.contains(&index) {
+                            None
+                        } else { Some(i.clone()) } ).collect()
+                    });
+                },
+                syn::Fields::Unnamed(unnamed) => {
+                    let old_punctuation = unnamed.unnamed;
+                    let brace = unnamed.paren_token;
+                    out_struct.fields = syn::Fields::Unnamed(syn::FieldsUnnamed {
+                        paren_token: brace,
+                        unnamed: old_punctuation.into_iter().enumerate().filter_map(|(index, i)| if leave_out.contains(&index) {
+                            None
+                        } else { Some(i.clone()) } ).collect()
+                    });
+                },
+            };
         }
 
         out.extend::<proc_macro2::TokenStream>(out_struct.into_token_stream());
