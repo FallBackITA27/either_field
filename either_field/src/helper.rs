@@ -44,10 +44,3 @@ pub(crate) fn get_macro_from_type(x: &Type) -> Option<Macro> {
     }
     None
 }
-
-pub(crate) fn push_if_empty_tuple(x: &Type, delete: bool, vec: &mut Vec<bool>) {
-    match delete && matches!(x, Type::Tuple(syn::TypeTuple { elems, .. }) if elems.is_empty()) {
-        true => vec.push(true),
-        false => vec.push(false),
-    }
-}

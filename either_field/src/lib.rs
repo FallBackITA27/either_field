@@ -1,7 +1,10 @@
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{ToTokens, quote};
-use syn::{GenericParam, Generics, Ident, Type, parse_macro_input, punctuated::Punctuated};
+use syn::{
+    Field, GenericParam, Generics, Ident, Type, parse_macro_input, punctuated::Punctuated,
+    token::Comma,
+};
 
 mod helper;
 mod minor_parsing;
@@ -63,8 +66,8 @@ pub fn make_template(
     items: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     let mut out = proc_macro2::TokenStream::new();
-    let template_struct = parse_macro_input!(items as syn::ItemStruct);
 
+    let template_struct = parse_macro_input!(items as syn::ItemStruct);
     let attribute_inputs = parse_macro_input!(attr as minor_parsing::AttrInputs);
 
     let is_tuple = match template_struct.fields {
@@ -188,30 +191,36 @@ fn gen_structs(
     attribute_inputs: minor_parsing::AttrInputs,
     is_tuple: bool,
 ) -> TokenStream {
-    // this also has to match the order of the generics
-    let mut ordered_idents_and_types: Vec<Vec<Type>> = vec![];
+    let ordered_idents_and_types = match template_struct
+        .fields
+        .iter_mut()
+        .enumerate()
+        .map(|(field_number, field)| {
+            let type_macro = match helper::get_macro_from_type(&field.ty) {
+                Some(x) => x,
+                None => return Ok(vec![]),
+            };
 
-    for (field_number, field) in template_struct.fields.iter_mut().enumerate() {
-        let type_macro = match helper::get_macro_from_type(&field.ty) {
-            Some(x) => x,
-            None => {
-                ordered_idents_and_types.push(vec![]);
-                continue;
+            let parsed = match syn::parse2::<minor_parsing::EitherMacro>(type_macro.tokens) {
+                Ok(v) => v.0,
+                Err(e) => return Err(e.into_compile_error().into()),
+            };
+
+            if is_tuple {
+                field.ident = Some(Ident::new(
+                    format!("_{field_number}").as_str(),
+                    Span::call_site(),
+                ));
             }
-        };
 
-        let tokens: TokenStream = type_macro.tokens.clone().into();
-        let parsed = parse_macro_input!(tokens as minor_parsing::EitherMacro).0;
-
-        if is_tuple {
-            field.ident = Some(Ident::new(
-                format!("_{field_number}").as_str(),
-                Span::call_site(),
-            ));
-        }
-        field.ty = parsed[0].clone();
-        ordered_idents_and_types.push(parsed);
-    }
+            field.ty = parsed[0].clone();
+            Ok(parsed)
+        })
+        .collect::<Result<Vec<Vec<Type>>, TokenStream>>()
+    {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
 
     for derived in attribute_inputs.derived_structs {
         let mut out_struct = template_struct.clone();
@@ -248,63 +257,41 @@ fn gen_structs(
         }
 
         if attribute_inputs.settings.delete_empty_tuple_fields {
-            // here are the fields, that aren't being left out
-            match out_struct.fields {
-                syn::Fields::Unit => {
-                    // This should never happen anyways, as template struct is already shielding us
-                    // from this case
-                    custom_compiler_error_msg!(
-                        out,
-                        "Unit structs have no fields to do anything about."
-                    );
-                    return out.into();
+            let filter = |item: Field| {
+                if let Type::Tuple(ref x) = item.ty {
+                    if x.elems.is_empty() {
+                        return None;
+                    }
                 }
+                Some(item)
+            };
+
+            match &mut out_struct.fields {
+                syn::Fields::Unit => return out.into(), // returned earlier
                 syn::Fields::Named(named) => {
-                    let old_punctuation = named.named;
-                    let brace = named.brace_token;
-                    out_struct.fields = syn::Fields::Named(syn::FieldsNamed {
-                        brace_token: brace,
-                        named: old_punctuation
-                            .into_iter()
-                            .filter_map(|item| {
-                                if let Type::Tuple(ref x) = item.ty {
-                                    if x.elems.is_empty() {
-                                        return None;
-                                    }
-                                }
-                                Some(item)
-                            })
-                            .collect(),
-                    });
+                    named.named = std::mem::take(&mut named.named)
+                        .into_iter()
+                        .filter_map(filter)
+                        .collect();
                 }
                 syn::Fields::Unnamed(unnamed) => {
-                    let old_punctuation = unnamed.unnamed;
-                    let brace = unnamed.paren_token;
-                    out_struct.fields = syn::Fields::Unnamed(syn::FieldsUnnamed {
-                        paren_token: brace,
-                        unnamed: old_punctuation
-                            .into_iter()
-                            .filter_map(|item| {
-                                if let Type::Tuple(ref x) = item.ty {
-                                    if x.elems.is_empty() {
-                                        return None;
-                                    }
-                                }
-                                Some(item)
-                            })
-                            .collect(),
-                    });
+                    unnamed.unnamed = std::mem::take(&mut unnamed.unnamed)
+                        .into_iter()
+                        .filter_map(filter)
+                        .collect();
                 }
             };
         }
 
         out.extend::<proc_macro2::TokenStream>(out_struct.into_token_stream());
     }
+
     if !attribute_inputs.settings.delete_template {
         if is_tuple {
-            for field in template_struct.fields.iter_mut() {
-                field.ident = None;
-            }
+            template_struct
+                .fields
+                .iter_mut()
+                .for_each(|x| x.ident = None);
         }
         out.extend::<proc_macro2::TokenStream>(template_struct.into_token_stream());
     }
