@@ -1,6 +1,6 @@
 [package]
 name = "either_field"
-version = "1.2.0"
+version = "1.2.1"
 edition = "2024"
 license = "GPL-3.0-only"
 readme = "../README.md"
@@ -14,6 +14,6 @@ authors = ["FallBackITA27 <leilamassanova@gmail.com>", "ekstdo <minhala2003@mail
 proc-macro = true
 
 [dependencies]
-proc-macro2 = "1.0.94"
-quote = "1.0.40"
-syn = {version = "2.0.100", features = ["parsing","full","derive","extra-traits"]}
+proc-macro2 = "1.0.105"
+quote = "1.0.43"
+syn = {version = "2.0.114", features = ["parsing","full","derive","extra-traits"]}

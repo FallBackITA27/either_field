@@ -2,15 +2,13 @@ use proc_macro2::Span;
 use syn::{GenericParam, Ident, Macro, Type, punctuated::Punctuated, token::Comma};
 
 fn get_alpha(n: usize) -> String {
-    const ALPHABET: [char; 26] = [
-        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
-        'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-    ];
+    let index = (n % 26) as u8;
+    let character = b'A' + index;
     if n < 26 {
-        return ALPHABET[n].to_string();
+        return unsafe { String::from_utf8_unchecked(vec![character; 1]) };
     }
     let mut x = get_alpha((n / 26) - 1);
-    x.push(ALPHABET[n % 26]);
+    x.push(char::from(character));
     x
 }
 
@@ -32,22 +30,14 @@ pub(crate) fn generate_generic_name(
 // TODO: need a better way to check whether the macro
 // is the correct one and not one with the same name
 pub(crate) fn get_macro_from_type(x: &Type) -> Option<Macro> {
-    if let Type::Macro(x) = x {
-        if x.mac
+    if let Type::Macro(x) = x
+        && x.mac
             .path
             .segments
             .iter()
             .any(|segment| segment.ident == "either")
-        {
-            return Some(x.mac.clone());
-        }
+    {
+        return Some(x.mac.clone());
     }
     None
-}
-
-pub(crate) fn push_if_empty_tuple(x: &Type, delete: bool, vec: &mut Vec<bool>) {
-    match delete && matches!(x, Type::Tuple(syn::TypeTuple { elems, .. }) if elems.is_empty()) {
-        true => vec.push(true),
-        false => vec.push(false),
-    }
 }
