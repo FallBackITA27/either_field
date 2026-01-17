@@ -112,7 +112,7 @@ impl Parse for AttrInputs {
 pub(crate) struct Derived {
     pub vis: Visibility,
     pub name: Ident,
-    pub fields: std::collections::HashMap<Ident, Type>,
+    pub fields: std::collections::HashMap<String, Type>,
 }
 impl Parse for Derived {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -130,7 +130,7 @@ impl Parse for Derived {
         {
             let ident = match field.ident {
                 Some(ident) => ident,
-                None => Ident::new(format!("_{ident_number}").as_str(), Span::call_site()),
+                None => ident_number.to_string(),
             };
             fields.insert(ident, field.field_type);
         }
@@ -144,26 +144,28 @@ impl Parse for Derived {
 //
 // field_name: type, ...
 pub(crate) struct FieldDescriptor {
-    ident: Option<Ident>,
+    ident: Option<String>,
     field_type: Type,
 }
 impl Parse for FieldDescriptor {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let ident = if input.peek2(Token![:]) {
-            let ident = if input.peek(Ident) {
-                input.parse::<Ident>()?
-            } else {
+        let ident = match (input.peek2(Token![:]), input.peek(Ident)) {
+            (true, true) => {
+                let out = input.parse::<Ident>()?;
+                let _ = input.parse::<Token![:]>()?;
+                Some(out.to_string())
+            }
+            (true, false) => {
                 let x = input.parse::<Literal>()?;
-                let y = x.to_string();
-                if y.chars().any(|x| !x.is_numeric()) {
+                let out = x.to_string();
+                if out.chars().any(|c| !c.is_numeric()) {
                     return syn_error!("Literal is not number");
                 }
-                Ident::new(format!("_{y}").as_str(), x.span())
-            };
-            let _ = input.parse::<Token![:]>()?;
-            Some(ident)
-        } else {
-            None
+                let _ = input.parse::<Token![:]>()?;
+                Some(out)
+            }
+            (false, true) => return syn_error!("Found nonesense colon"),
+            (false, _) => None,
         };
 
         let field_type = input.parse::<Type>()?;
