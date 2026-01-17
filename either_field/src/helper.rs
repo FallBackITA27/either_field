@@ -30,15 +30,14 @@ pub(crate) fn generate_generic_name(
 // TODO: need a better way to check whether the macro
 // is the correct one and not one with the same name
 pub(crate) fn get_macro_from_type(x: &Type) -> Option<Macro> {
-    if let Type::Macro(x) = x {
-        if x.mac
+    if let Type::Macro(x) = x
+        && x.mac
             .path
             .segments
             .iter()
             .any(|segment| segment.ident == "either")
-        {
-            return Some(x.mac.clone());
-        }
+    {
+        return Some(x.mac.clone());
     }
     None
 }
