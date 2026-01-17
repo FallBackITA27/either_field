@@ -236,7 +236,6 @@ fn gen_structs(
         }
 
         let mut fields_token_stream = proc_macro2::TokenStream::new();
-
         for (field_number, field) in template_struct.fields.iter().enumerate() {
             let pseudo_ident = match field.ident.as_ref() {
                 None => field_number.to_string(),
@@ -277,10 +276,20 @@ fn gen_structs(
                     continue;
                 }
                 (x, true) => {
+                    for attr in &field.attrs {
+                        attr.to_tokens(&mut fields_token_stream);
+                    }
+                    field.vis.to_tokens(&mut fields_token_stream);
+                    // field.mutability.to_tokens(&mut fields_token_stream);
                     x.to_tokens(&mut fields_token_stream);
                     Comma::default().to_tokens(&mut fields_token_stream);
                 }
                 (x, false) => {
+                    for attr in &field.attrs {
+                        attr.to_tokens(&mut fields_token_stream);
+                    }
+                    field.vis.to_tokens(&mut fields_token_stream);
+                    // field.mutability.to_tokens(&mut fields_token_stream);
                     field.ident.to_tokens(&mut fields_token_stream);
                     field.colon_token.to_tokens(&mut fields_token_stream);
                     x.to_tokens(&mut fields_token_stream);
