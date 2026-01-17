@@ -2,15 +2,13 @@ use proc_macro2::Span;
 use syn::{GenericParam, Ident, Macro, Type, punctuated::Punctuated, token::Comma};
 
 fn get_alpha(n: usize) -> String {
-    const ALPHABET: [char; 26] = [
-        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
-        'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-    ];
+    let index = (n % 26) as u8;
+    let character = b'A' + index;
     if n < 26 {
-        return ALPHABET[n].to_string();
+        return unsafe { String::from_utf8_unchecked(vec![character; 1]) };
     }
     let mut x = get_alpha((n / 26) - 1);
-    x.push(ALPHABET[n % 26]);
+    x.push(char::from(character));
     x
 }
 
