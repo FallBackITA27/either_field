@@ -72,11 +72,11 @@ pub fn make_template(
         &template_struct.fields,
         attribute_inputs.settings.generate_structs,
     ) {
-        (syn::Fields::Unit, true) | (syn::Fields::Unit, false) => {
+        (syn::Fields::Unit, _) => {
             custom_compiler_error_msg!(out, "Unit structs have no fields to do anything about.");
             out.into()
         }
-        (syn::Fields::Unnamed(_), false) | (syn::Fields::Named(_), false) => {
+        (_, false) => {
             gen_types(out, template_struct, attribute_inputs)
         }
         (syn::Fields::Named(_), true) => gen_structs(out, template_struct, attribute_inputs, false),
