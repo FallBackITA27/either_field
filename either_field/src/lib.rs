@@ -1,9 +1,7 @@
 use proc_macro::TokenStream;
-use proc_macro2::Span;
 use quote::{ToTokens, quote};
 use syn::{
-    Field, GenericParam, Generics, Ident, Type, parse_macro_input, punctuated::Punctuated,
-    token::Comma,
+    GenericParam, Generics, Ident, Type, parse_macro_input, punctuated::Punctuated, token::Comma,
 };
 
 mod helper;
@@ -70,23 +68,21 @@ pub fn make_template(
     let template_struct = parse_macro_input!(items as syn::ItemStruct);
     let attribute_inputs = parse_macro_input!(attr as minor_parsing::AttrInputs);
 
-    let is_tuple = match template_struct.fields {
-        syn::Fields::Unit => {
+    match (
+        &template_struct.fields,
+        attribute_inputs.settings.generate_structs,
+    ) {
+        (syn::Fields::Unit, true) | (syn::Fields::Unit, false) => {
             custom_compiler_error_msg!(out, "Unit structs have no fields to do anything about.");
-            return out.into();
+            out.into()
         }
-        syn::Fields::Unnamed(_) => true,
-        syn::Fields::Named(_) => false,
-    };
-
-    if is_tuple && !attribute_inputs.settings.generate_structs {
-        custom_compiler_error_msg!(out, "Tuple structs require `GenStructs` set to `true`.");
-        return out.into();
-    }
-
-    match attribute_inputs.settings.generate_structs {
-        false => gen_types(out, template_struct, attribute_inputs),
-        true => gen_structs(out, template_struct, attribute_inputs, is_tuple),
+        (syn::Fields::Unnamed(_), false) | (syn::Fields::Named(_), false) => {
+            gen_types(out, template_struct, attribute_inputs)
+        }
+        (syn::Fields::Named(_), true) => gen_structs(out, template_struct, attribute_inputs, false),
+        (syn::Fields::Unnamed(_), true) => {
+            gen_structs(out, template_struct, attribute_inputs, true)
+        }
     }
 }
 
@@ -129,7 +125,7 @@ fn gen_types(
     for derived in derived_list {
         let mut types = vec![];
         for (ident, possible_types) in &ordered_idents_and_types {
-            match derived.fields.get(ident) {
+            match derived.fields.get(&ident.to_string()) {
                 None => types.push(possible_types[0].clone()),
                 Some(v) => {
                     if let Type::Infer(_) = v {
@@ -142,8 +138,10 @@ fn gen_types(
                         false => {
                             custom_compiler_error_msg!(
                                 out,
-                                "Type \"{}\" is not part of the specified possible types: {:?}",
+                                "Type \"{}\" (struct \"{}\", field \"{}\") is not part of the specified possible types: {:?}",
                                 v.to_token_stream(),
+                                derived.name,
+                                ident,
                                 possible_types
                                     .iter()
                                     .map(|x| format!("{}", x.to_token_stream()))
@@ -191,108 +189,117 @@ fn gen_structs(
     attribute_inputs: minor_parsing::AttrInputs,
     is_tuple: bool,
 ) -> TokenStream {
-    let ordered_idents_and_types = match template_struct
-        .fields
-        .iter_mut()
-        .enumerate()
-        .map(|(field_number, field)| {
-            let type_macro = match helper::get_macro_from_type(&field.ty) {
-                Some(x) => x,
-                None => return Ok(vec![]),
-            };
+    let mut valid_types = std::collections::HashMap::new();
 
-            let parsed = match syn::parse2::<minor_parsing::EitherMacro>(type_macro.tokens) {
-                Ok(v) => v.0,
-                Err(e) => return Err(e.into_compile_error().into()),
-            };
+    /* Parsing Template's Types */
+    for (field_number, field) in template_struct.fields.iter_mut().enumerate() {
+        let type_macro = match helper::get_macro_from_type(&field.ty) {
+            Some(x) => x,
+            None => continue,
+        };
 
-            if is_tuple {
-                field.ident = Some(Ident::new(
-                    format!("_{field_number}").as_str(),
-                    Span::call_site(),
-                ));
-            }
+        let parsed = match syn::parse2::<minor_parsing::EitherMacro>(type_macro.tokens) {
+            Ok(v) => v.0,
+            Err(e) => return e.into_compile_error().into(),
+        };
 
-            field.ty = parsed[0].clone();
-            Ok(parsed)
-        })
-        .collect::<Result<Vec<Vec<Type>>, TokenStream>>()
-    {
-        Ok(v) => v,
-        Err(e) => return e,
-    };
-
-    for derived in attribute_inputs.derived_structs {
-        let mut out_struct = template_struct.clone();
-        out_struct.ident = derived.name;
-        out_struct.vis = derived.vis;
-        for (field_num, field) in out_struct.fields.iter_mut().enumerate() {
-            let possible_types = &ordered_idents_and_types[field_num];
-            let get = derived.fields.get(field.ident.as_ref().unwrap());
-            if is_tuple {
-                field.ident = None;
-            }
-            if get.is_none() {
+        match parsed.len() == 1 {
+            true => {
+                field.ty.clone_from(&parsed[0]);
                 continue;
             }
-            let v = get.unwrap();
-            if let Type::Infer(_) = v {
-                continue;
-            }
-            match possible_types.contains(v) {
-                true => field.ty = v.clone(),
-                false => {
+            false => field.ty = parsed[0].clone(),
+        }
+
+        valid_types.insert(
+            match field.ident.as_ref() {
+                Some(v) => v.to_string(),
+                None => field_number.to_string(),
+            },
+            std::collections::HashSet::<Type>::from_iter(parsed),
+        );
+    }
+
+    /* Spitting Tokens Out */
+    for derived in attribute_inputs.derived_structs.into_iter() {
+        for attr in &template_struct.attrs {
+            attr.to_tokens(&mut out);
+        }
+        derived.vis.to_tokens(&mut out);
+        template_struct.struct_token.to_tokens(&mut out);
+        derived.name.to_tokens(&mut out);
+        template_struct.generics.to_tokens(&mut out);
+        if !is_tuple {
+            template_struct.generics.where_clause.to_tokens(&mut out);
+        }
+
+        let mut fields_token_stream = proc_macro2::TokenStream::new();
+
+        for (field_number, field) in template_struct.fields.iter().enumerate() {
+            let pseudo_ident = match field.ident.as_ref() {
+                None => field_number.to_string(),
+                Some(v) => v.to_string(),
+            };
+
+            let field_type = match derived.fields.get(&pseudo_ident) {
+                Some(Type::Infer(_)) | None => &field.ty,
+                Some(v) => v,
+            };
+
+            let (valid_types, is_valid_type) = match valid_types
+                .get(&pseudo_ident)
+                .map(|v| (Some(v), v.contains(field_type)))
+            {
+                Some(v) => v,
+                None => (None, true),
+            };
+
+            match (field_type, is_tuple) {
+                (x, _) if !is_valid_type => {
                     custom_compiler_error_msg!(
-                        out,
-                        "Type \"{}\" is not part of the specified possible types: {:?}",
-                        v.to_token_stream(),
-                        possible_types
+                        fields_token_stream,
+                        "Type \"{}\" (struct \"{}\", field \"{}\") is not part of the specified possible types: {:?}",
+                        x.to_token_stream(),
+                        derived.name,
+                        pseudo_ident,
+                        valid_types
+                            .unwrap()
                             .iter()
-                            .map(|x| format!("{}", x.to_token_stream()))
+                            .map(|x| x.to_token_stream().to_string())
                             .collect::<Vec<_>>()
                     );
-                    return out.into();
                 }
+                (Type::Tuple(syn::TypeTuple { elems, .. }), _)
+                    if attribute_inputs.settings.delete_empty_tuple_fields && elems.is_empty() =>
+                {
+                    continue;
+                }
+                (x, true) => {
+                    x.to_tokens(&mut fields_token_stream);
+                    Comma::default().to_tokens(&mut fields_token_stream);
+                }
+                (x, false) => {
+                    field.ident.to_tokens(&mut fields_token_stream);
+                    field.colon_token.to_tokens(&mut fields_token_stream);
+                    x.to_tokens(&mut fields_token_stream);
+                    Comma::default().to_tokens(&mut fields_token_stream);
+                }
+            };
+        }
+
+        match is_tuple {
+            true => {
+                syn::token::Paren::default()
+                    .surround(&mut out, |out| fields_token_stream.to_tokens(out));
+                template_struct.generics.where_clause.to_tokens(&mut out);
+                syn::token::Semi::default().to_tokens(&mut out);
             }
+            false => syn::token::Brace::default()
+                .surround(&mut out, |out| fields_token_stream.to_tokens(out)),
         }
-
-        if attribute_inputs.settings.delete_empty_tuple_fields {
-            let filter = |item: Field| {
-                if let Type::Tuple(ref x) = item.ty {
-                    if x.elems.is_empty() {
-                        return None;
-                    }
-                }
-                Some(item)
-            };
-
-            match &mut out_struct.fields {
-                syn::Fields::Unit => return out.into(), // returned earlier
-                syn::Fields::Named(named) => {
-                    named.named = std::mem::take(&mut named.named)
-                        .into_iter()
-                        .filter_map(filter)
-                        .collect();
-                }
-                syn::Fields::Unnamed(unnamed) => {
-                    unnamed.unnamed = std::mem::take(&mut unnamed.unnamed)
-                        .into_iter()
-                        .filter_map(filter)
-                        .collect();
-                }
-            };
-        }
-
-        out.extend::<proc_macro2::TokenStream>(out_struct.into_token_stream());
     }
 
     if !attribute_inputs.settings.delete_template {
-        if is_tuple {
-            template_struct
-                .fields
-                .iter_mut()
-                .for_each(|x| x.ident = None);
-        }
         out.extend::<proc_macro2::TokenStream>(template_struct.into_token_stream());
     }
 
