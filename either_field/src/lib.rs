@@ -94,8 +94,9 @@ fn gen_types(
     let initial_generics: Generics = template_struct.generics.clone();
     let generics = &mut template_struct.generics.params;
     // this also has to match the order of the generics
-    let mut ordered_idents_and_types: Vec<(Ident, Vec<Type>)> = vec![];
+    let mut ordered_idents_and_types = vec![];
     let mut ident_counter = 0;
+
     for field in template_struct.fields.iter_mut() {
         let type_macro = match helper::get_macro_from_type(&field.ty) {
             Some(x) => x,
@@ -108,15 +109,16 @@ fn gen_types(
         ordered_idents_and_types.push((field.ident.as_ref().unwrap().clone(), parsed));
 
         let ident = helper::generate_generic_name(generics, &mut ident_counter);
+        field.ty = Type::Verbatim(ident.to_token_stream());
         generics.push(GenericParam::Type(syn::TypeParam {
+            ident,
             attrs: vec![],
-            ident: ident.clone(),
             colon_token: None,
             bounds: Punctuated::new(),
             eq_token: None,
             default: None,
         }));
-        field.ty = Type::Verbatim(ident.into_token_stream());
+
         ident_counter += 1;
     }
 
