@@ -1,8 +1,8 @@
+use std::hint::unreachable_unchecked;
+
 use proc_macro::TokenStream;
 use quote::{ToTokens, quote};
-use syn::{
-    GenericParam, Generics, Ident, Type, parse_macro_input, punctuated::Punctuated, token::Comma,
-};
+use syn::{GenericParam, Generics, Type, parse_macro_input, punctuated::Punctuated, token::Comma};
 
 mod helper;
 mod minor_parsing;
@@ -76,9 +76,7 @@ pub fn make_template(
             custom_compiler_error_msg!(out, "Unit structs have no fields to do anything about.");
             out.into()
         }
-        (_, false) => {
-            gen_types(out, template_struct, attribute_inputs)
-        }
+        (_, false) => gen_types(out, template_struct, attribute_inputs),
         (syn::Fields::Named(_), true) => gen_structs(out, template_struct, attribute_inputs, false),
         (syn::Fields::Unnamed(_), true) => {
             gen_structs(out, template_struct, attribute_inputs, true)
@@ -311,6 +309,36 @@ fn gen_structs(
     }
 
     if !attribute_inputs.settings.delete_template {
+        if attribute_inputs.settings.delete_empty_tuple_fields {
+            let cb = |t: &syn::Type| match t {
+                Type::Tuple(syn::TypeTuple { elems, .. }) => !elems.is_empty(),
+                _ => true,
+            };
+            match template_struct.fields {
+                syn::Fields::Unit => unsafe { unreachable_unchecked() },
+                syn::Fields::Named(_) => {
+                    template_struct.fields = syn::Fields::Named(syn::FieldsNamed {
+                        brace_token: syn::token::Brace::default(),
+                        named: template_struct
+                            .fields
+                            .into_iter()
+                            .filter(|f| cb(&f.ty))
+                            .collect(),
+                    })
+                }
+                syn::Fields::Unnamed(_) => {
+                    template_struct.fields = syn::Fields::Unnamed(syn::FieldsUnnamed {
+                        paren_token: syn::token::Paren::default(),
+                        unnamed: template_struct
+                            .fields
+                            .into_iter()
+                            .filter(|f| cb(&f.ty))
+                            .collect(),
+                    })
+                }
+            }
+        }
+
         out.extend::<proc_macro2::TokenStream>(template_struct.into_token_stream());
     }
 
